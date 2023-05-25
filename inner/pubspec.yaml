@@ -40,3 +40,5 @@ dependency_overrides:
     path: pkg/dev_compiler
   front_end:
     path: pkg/front_end
+  track:
+    path: track

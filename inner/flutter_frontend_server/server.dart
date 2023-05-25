@@ -48,6 +48,8 @@ class _FlutterFrontendCompiler implements frontend.CompilerInterface {
       {IncrementalCompiler generator}) async {
     print('aop: need perform ' + aopTransform.toString());
 
+    print('aop: need perform ' + aopTransform.toString());
+
     if (aopTransform == true &&
         !FlutterTarget.flutterProgramTransformers
             .contains(aspectdAopTransformer)) {

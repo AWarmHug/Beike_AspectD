@@ -1,4 +1,5 @@
 import 'package:kernel/ast.dart';
+import 'package:track/my_track_widget_constructor_locations.dart';
 import 'package:vm/target/flutter.dart';
 
 import 'beike_transformer/aop_addimpl_transformer.dart';
@@ -17,8 +18,13 @@ class AopWrapperTransformer extends FlutterProgramTransformer {
   Map<String, Library> componentLibraryMap = <String, Library>{};
   Component platformStrongComponent;
 
+  WidgetCreatorTracker tracker = WidgetCreatorTracker();
+
   @override
   void transform(Component program, {void Function(String msg) logger}) {
+    tracker.transform(program, program.libraries, null);
+    print('tracker -> start');
+
     for (Library library in program.libraries) {
       componentLibraryMap.putIfAbsent(
           library.importUri.toString(), () => library);
