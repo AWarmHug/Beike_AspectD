@@ -7,6 +7,8 @@ library kernel.transformations.track_widget_constructor_locations;
 import 'package:kernel/ast.dart';
 import 'package:kernel/target/changed_structure_notifier.dart';
 
+const String _flutterFile = 'flutter/lib/';
+
 // Parameter name used to track where widget constructor calls were made from.
 //
 // The parameter name contains a randomly generated hex string to avoid
@@ -20,7 +22,7 @@ const String _creationLocationParameterName =
 /// Regardless of what library a class implementing Widget is defined in, the
 /// private field will always be defined in the context of the widget_inspector
 /// library ensuring no name conflicts with regular fields.
-const String _locationFieldName = r'_location';
+const String _locationFieldName = r'_myLocation';
 
 bool _hasNamedParameter(FunctionNode function, String name) {
   return function.namedParameters
@@ -33,9 +35,9 @@ bool _hasNamedArgument(Arguments arguments, String argumentName) {
 }
 
 VariableDeclaration? _getNamedParameter(
-    FunctionNode function,
-    String parameterName,
-    ) {
+  FunctionNode function,
+  String parameterName,
+) {
   for (VariableDeclaration parameter in function.namedParameters) {
     if (parameter.name == parameterName) {
       return parameter;
@@ -56,11 +58,11 @@ VariableDeclaration? _getNamedParameter(
 /// parameters by skipping adding the creation location argument rather than
 /// failing.
 void _maybeAddCreationLocationArgument(
-    Arguments arguments,
-    FunctionNode function,
-    Expression creationLocation,
-    Class locationClass,
-    ) {
+  Arguments arguments,
+  FunctionNode function,
+  Expression creationLocation,
+  Class locationClass,
+) {
   if (_hasNamedArgument(arguments, _creationLocationParameterName)) {
     return;
   }
@@ -77,7 +79,7 @@ void _maybeAddCreationLocationArgument(
   }
 
   final NamedExpression namedArgument =
-  new NamedExpression(_creationLocationParameterName, creationLocation);
+      new NamedExpression(_creationLocationParameterName, creationLocation);
   namedArgument.parent = arguments;
   arguments.named.add(namedArgument);
 }
@@ -85,9 +87,9 @@ void _maybeAddCreationLocationArgument(
 /// Adds a named parameter to a function if the function does not already have
 /// a named parameter with the name or optional positional parameters.
 bool _maybeAddNamedParameter(
-    FunctionNode function,
-    VariableDeclaration variable,
-    ) {
+  FunctionNode function,
+  VariableDeclaration variable,
+) {
   if (_hasNamedParameter(function, _creationLocationParameterName)) {
     // Gracefully handle if this method is called on a function that has already
     // been transformed.
@@ -136,8 +138,8 @@ class _WidgetCallSiteTransformer extends Transformer {
 
   _WidgetCallSiteTransformer(
       {required Class widgetClass,
-        required Class locationClass,
-        required WidgetCreatorTracker tracker})
+      required Class locationClass,
+      required WidgetCreatorTracker tracker})
       : _widgetClass = widgetClass,
         _locationClass = locationClass,
         _tracker = tracker;
@@ -153,14 +155,17 @@ class _WidgetCallSiteTransformer extends Transformer {
   /// of the parameters passed in so that tools can show parameter locations
   /// without re-parsing the source code.
   ConstructorInvocation _constructLocation(
-      Location location, {
-        String? name,
-      }) {
+    Location location, {
+    String? name,
+  }) {
     final List<NamedExpression> arguments = <NamedExpression>[
-      new NamedExpression('file', new StringLiteral(location.file.toString())),
-      new NamedExpression('line', new IntLiteral(location.line)),
-      new NamedExpression('column', new IntLiteral(location.column)),
-      if (name != null) new NamedExpression('name', new StringLiteral(name))
+      new NamedExpression('self',
+          new BoolLiteral(!location.file.toString().contains(_flutterFile))),
+
+      // new NamedExpression('file', new StringLiteral(location.file.toString())),
+      // new NamedExpression('line', new IntLiteral(location.line)),
+      // new NamedExpression('column', new IntLiteral(location.column)),
+      // if (name != null) new NamedExpression('name', new StringLiteral(name))
     ];
 
     return new ConstructorInvocation(
@@ -230,11 +235,11 @@ class _WidgetCallSiteTransformer extends Transformer {
   }
 
   Expression _computeLocation(
-      InvocationExpression node,
-      FunctionNode function,
-      Class constructedClass, {
-        bool isConst = false,
-      }) {
+    InvocationExpression node,
+    FunctionNode function,
+    Class constructedClass, {
+    bool isConst = false,
+  }) {
     // For factory constructors we need to use the location specified as an
     // argument to the factory constructor rather than the location
     if (_currentFactory != null &&
@@ -261,15 +266,15 @@ class _WidgetCallSiteTransformer extends Transformer {
 
   void enterLibrary(Library library) {
     assert(
-    _currentLibrary == null,
-    "Attempting to enter library '${library.fileUri}' "
+        _currentLibrary == null,
+        "Attempting to enter library '${library.fileUri}' "
         "without having exited library '${_currentLibrary!.fileUri}'.");
     _currentLibrary = library;
   }
 
   void exitLibrary() {
     assert(_currentLibrary != null,
-    "Attempting to exit a library without having entered one.");
+        "Attempting to exit a library without having entered one.");
     _currentLibrary = null;
   }
 }
@@ -298,6 +303,7 @@ class WidgetCreatorTracker {
     for (Library library in libraries) {
       final Uri importUri = library.importUri;
       // ignore: unnecessary_null_comparison
+      print("aop -> ${importUri}");
       if (importUri != null && importUri.isScheme('package')) {
         if (importUri.path == 'flutter/src/widgets/framework.dart') {
           for (Class class_ in library.classes) {
@@ -306,7 +312,7 @@ class WidgetCreatorTracker {
               foundWidgetClass = true;
             }
           }
-        } else if(importUri.path == 'aspectd_demo/click/click_manager.dart'){
+        } else if (importUri.path == 'aspectd_demo/click/click_manager.dart') {
           print("track -> ${library}");
           for (Class class_ in library.classes) {
             if (class_.name == '_MyHasCreationLocation') {
@@ -318,17 +324,17 @@ class WidgetCreatorTracker {
             }
           }
         } else {
-          if (importUri.path == 'flutter/src/widgets/widget_inspector.dart') {
-            for (Class class_ in library.classes) {
-              if (class_.name == '_HasCreationLocation') {
-                _hasCreationLocationClass = class_;
-                foundHasCreationLocationClass = true;
-              } else if (class_.name == '_Location') {
-                _locationClass = class_;
-                foundLocationClass = true;
-              }
-            }
-          }
+          // if (importUri.path == 'flutter/src/widgets/widget_inspector.dart') {
+          //   for (Class class_ in library.classes) {
+          //     if (class_.name == '_HasCreationLocation') {
+          //       _hasCreationLocationClass = class_;
+          //       foundHasCreationLocationClass = true;
+          //     } else if (class_.name == '_Location') {
+          //       _locationClass = class_;
+          //       foundLocationClass = true;
+          //     }
+          //   }
+          // }
         }
       }
     }
@@ -361,7 +367,7 @@ class WidgetCreatorTracker {
     );
     final Field locationField = new Field.immutable(fieldName,
         type:
-        new InterfaceType(_locationClass, clazz.enclosingLibrary.nullable),
+            new InterfaceType(_locationClass, clazz.enclosingLibrary.nullable),
         isFinal: true,
         fieldReference: clazz.reference.canonicalName
             ?.getChildFromFieldWithName(fieldName)
@@ -373,7 +379,7 @@ class WidgetCreatorTracker {
     clazz.addField(locationField);
 
     final Set<Constructor> _handledConstructors =
-    new Set<Constructor>.identity();
+        new Set<Constructor>.identity();
 
     void handleConstructor(Constructor constructor) {
       if (!_handledConstructors.add(constructor)) {
@@ -477,10 +483,10 @@ class WidgetCreatorTracker {
 
     // Transform call sites to pass the location parameter.
     final _WidgetCallSiteTransformer callsiteTransformer =
-    new _WidgetCallSiteTransformer(
-        widgetClass: _widgetClass,
-        locationClass: _locationClass,
-        tracker: this);
+        new _WidgetCallSiteTransformer(
+            widgetClass: _widgetClass,
+            locationClass: _locationClass,
+            tracker: this);
 
     for (Library library in libraries) {
       callsiteTransformer.enterLibrary(library);
@@ -544,7 +550,7 @@ class WidgetCreatorTracker {
     }
 
     final Set<Constructor> _handledConstructors =
-    new Set<Constructor>.identity();
+        new Set<Constructor>.identity();
 
     void handleConstructor(Constructor constructor) {
       if (!_handledConstructors.add(constructor)) {

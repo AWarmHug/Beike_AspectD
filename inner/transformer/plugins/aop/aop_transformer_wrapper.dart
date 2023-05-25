@@ -23,7 +23,6 @@ class AopWrapperTransformer extends FlutterProgramTransformer {
   @override
   void transform(Component program, {void Function(String msg) logger}) {
     tracker.transform(program, program.libraries, null);
-    print('tracker -> start');
 
     for (Library library in program.libraries) {
       componentLibraryMap.putIfAbsent(
