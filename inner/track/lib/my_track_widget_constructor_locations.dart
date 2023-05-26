@@ -7,7 +7,7 @@ library kernel.transformations.track_widget_constructor_locations;
 import 'package:kernel/ast.dart';
 import 'package:kernel/target/changed_structure_notifier.dart';
 
-const String _flutterFile = 'flutter/lib/';
+const String _myProjectName = 'aspectd_demo';
 
 // Parameter name used to track where widget constructor calls were made from.
 //
@@ -160,7 +160,7 @@ class _WidgetCallSiteTransformer extends Transformer {
   }) {
     final List<NamedExpression> arguments = <NamedExpression>[
       new NamedExpression('self',
-          new BoolLiteral(!location.file.toString().contains(_flutterFile))),
+          new BoolLiteral(location.file.toString().contains(_myProjectName))),
 
       // new NamedExpression('file', new StringLiteral(location.file.toString())),
       // new NamedExpression('line', new IntLiteral(location.line)),
@@ -312,7 +312,7 @@ class WidgetCreatorTracker {
               foundWidgetClass = true;
             }
           }
-        } else if (importUri.path == 'aspectd_demo/click/click_manager.dart') {
+        } else if (importUri.path == 'aspectd_demo/track/click/click_manager.dart') {
           print("track -> ${library}");
           for (Class class_ in library.classes) {
             if (class_.name == '_MyHasCreationLocation') {
